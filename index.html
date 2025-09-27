@@ -320,435 +320,279 @@
     </style>
 </head>
 <body>
-    <div id="config-notice" class="config-notice">
-        <strong>⚠️ Setup Required:</strong> Please add your Cloudinary cloud name to the CLOUDINARY_CLOUD_NAME variable in the JavaScript section for photo uploads to work.
-    </div>
+  <div id="config-notice" class="config-notice">
+    <strong>⚠️ Setup Required:</strong> Make sure your Cloudinary cloud name is set in the `CLOUDINARY_CLOUD_NAME` variable and that "Resource List" is enabled in your Cloudinary Security Settings.
+  </div>
 
-    <div id="main-page" class="main-page">
-        <h1 style="text-align: left; font-size: 48px; color: white; margin-bottom: 40px; font-weight: bold;">Nandini Photos Album</h1>
-        <div class="events-grid" id="events-grid">
+  <div id="main-page" class="main-page">
+    <h1 style="text-align: left; font-size: 48px; color: white; margin-bottom: 40px; font-weight: bold;">Nandini Photos Album</h1>
+    <div class="events-grid" id="events-grid"></div>
+  </div>
+
+  <div id="event-pages"></div>
+
+  <div id="upload-modal" class="modal">
+    <div class="modal-content">
+      <h3>Enter Your First Name</h3>
+      <input type="text" id="user-name" placeholder="Your first name...">
+      <div class="upload-progress" id="upload-progress">
+        <div>Uploading photos...</div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
         </div>
+      </div>
+      <div>
+        <button id="submit-upload" onclick="submitUpload()">Submit</button>
+        <button onclick="closeModal()">Cancel</button>
+      </div>
     </div>
+  </div>
 
-    <div id="event-pages"></div>
+  <input type="file" id="file-input" class="file-input" accept="image/*" multiple>
 
-    <div id="upload-modal" class="modal">
-        <div class="modal-content">
-            <h3>Enter Your First Name</h3>
-            <input type="text" id="user-name" placeholder="Your first name...">
-            <div class="upload-progress" id="upload-progress">
-                <div>Uploading photos...</div>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progress-fill"></div>
-                </div>
-            </div>
-            <div>
-                <button id="submit-upload" onclick="submitUpload()">Submit</button>
-                <button onclick="closeModal()">Cancel</button>
-            </div>
-        </div>
-    </div>
+  <script>
+    const CLOUDINARY_CLOUD_NAME = 'dent1anto'; // <- Change this if needed
+    const CLOUDINARY_UPLOAD_PRESET = 'unsigned_preset';
+    const DELETE_PASSWORD = 'admin123';
 
-    <input type="file" id="file-input" class="file-input" accept="image/*" multiple>
+    window.events = [
+      { id: 'mock-trial-photos-2025', name: 'Mock Trial Photos 2025', photos: [] },
+      { id: 'garba-weekend-2025', name: 'Golu + Garba Weekend 2025', photos: [] },
+      { id: 'event', name: 'Event', photos: [] },
+      { id: 'event-2', name: 'Event 2', photos: [] },
+      { id: 'event-3', name: 'Event 3', photos: [] },
+      { id: 'event-4', name: 'Event 4', photos: [] },
+      { id: 'event-5', name: 'Event 5', photos: [] },
+      { id: 'event-6', name: 'Event 6', photos: [] }
+    ];
 
-    <script>
-        const CLOUDINARY_CLOUD_NAME = 'dent1anto';
-        const CLOUDINARY_UPLOAD_PRESET = 'unsigned_preset';
-        const DELETE_PASSWORD = 'admin123';
+    let currentEvent = null;
+    let pendingFiles = [];
 
-        window.events = [
-            { id: 'mock-trial-photos-2025', name: 'Mock Trial Photos 2025', photos: [] },
-            { id: 'garba-weekend-2025', name: 'Golu + Garba Weekend 2025', photos: [] },
-            { id: 'event', name: 'Event', photos: [] },
-            { id: 'event-2', name: 'Event 2', photos: [] },
-            { id: 'event-3', name: 'Event 3', photos: [] },
-            { id: 'event-4', name: 'Event 4', photos: [] },
-            { id: 'event-5', name: 'Event 5', photos: [] },
-            { id: 'event-6', name: 'Event 6', photos: [] }
-        ];
+    async function init() {
+      checkConfiguration();
+      await loadPhotosFromCloudinary();
+      generateEventsGrid();
+      generateEventPages();
+    }
 
-        let currentEvent = null;
-        let pendingFiles = [];
+    function checkConfiguration() {
+      document.getElementById('config-notice').style.display = 'none';
+    }
 
-        function init() {
-            checkConfiguration();
-            loadPhotosFromStorage();
-            generateEventsGrid();
-            generateEventPages();
+    async function fetchPhotosFromCloudinary(eventId) {
+      const folder = `events/${eventId}`;
+      const url = `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${folder}.json`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Could not fetch photos from Cloudinary");
+
+        const data = await response.json();
+        return data.resources.map(resource => ({
+          id: resource.public_id,
+          url: `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/${resource.public_id}.jpg`,
+          credit: "unknown", // You could improve this by using tags in a backend
+          filename: resource.public_id.split('/').pop(),
+          uploadedAt: new Date(resource.created_at).toISOString()
+        }));
+      } catch (err) {
+        console.error(`Failed to load photos for event "${eventId}":`, err);
+        return [];
+      }
+    }
+
+    async function loadPhotosFromCloudinary() {
+      for (const event of window.events) {
+        event.photos = await fetchPhotosFromCloudinary(event.id);
+      }
+    }
+
+    function generateEventsGrid() {
+      const grid = document.getElementById('events-grid');
+      grid.innerHTML = '';
+
+      window.events.forEach(event => {
+        const eventBox = document.createElement('div');
+        eventBox.className = 'event-box';
+        eventBox.onclick = () => showEvent(event.id);
+
+        const eventImage = document.createElement('div');
+        eventImage.className = 'event-image';
+
+        const firstPhoto = event.photos.length > 0 ? event.photos[0] : null;
+        if (firstPhoto) {
+          const thumbnailUrl = firstPhoto.url.replace('/upload/', '/upload/c_fill,w_300,h_400,q_auto/');
+          eventImage.style.backgroundImage = `url('${thumbnailUrl}')`;
+          eventImage.innerHTML = '';
+        } else {
+          eventImage.innerHTML = 'No photos yet';
         }
 
-        function checkConfiguration() {
-            document.getElementById('config-notice').style.display = 'none';
+        const eventName = document.createElement('div');
+        eventName.className = 'event-name';
+        eventName.textContent = event.name;
+
+        eventBox.appendChild(eventImage);
+        eventBox.appendChild(eventName);
+        grid.appendChild(eventBox);
+      });
+    }
+
+    function generateEventPages() {
+      const container = document.getElementById('event-pages');
+      container.innerHTML = '';
+
+      window.events.forEach(event => {
+        const eventPage = document.createElement('div');
+        eventPage.id = `event-${event.id}`;
+        eventPage.className = 'event-page';
+
+        eventPage.innerHTML = `
+          <button class="back-btn" onclick="showMain()">← Back to Events</button>
+          <div class="event-header">
+            <h1 class="event-title">${event.name}</h1>
+            <button class="upload-btn" onclick="startUpload('${event.id}')">Upload</button>
+          </div>
+          <div class="photos-container" id="photos-${event.id}">
+            ${event.photos.length === 0 ? '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>' : ''}
+          </div>
+        `;
+
+        container.appendChild(eventPage);
+        updatePhotosDisplay(event.id);
+      });
+    }
+
+    function showMain() {
+      document.getElementById('main-page').style.display = 'block';
+      document.querySelectorAll('.event-page').forEach(page => {
+        page.style.display = 'none';
+      });
+    }
+
+    function showEvent(eventId) {
+      document.getElementById('main-page').style.display = 'none';
+      document.querySelectorAll('.event-page').forEach(page => {
+        page.style.display = 'none';
+      });
+      document.getElementById(`event-${eventId}`).style.display = 'block';
+    }
+
+    function startUpload(eventId) {
+      currentEvent = eventId;
+      document.getElementById('file-input').click();
+    }
+
+    document.getElementById('file-input').addEventListener('change', function(e) {
+      if (e.target.files.length > 0 && currentEvent) {
+        pendingFiles = Array.from(e.target.files);
+        document.getElementById('upload-modal').style.display = 'block';
+      } else if (!currentEvent) {
+        alert('No event selected. Please try again.');
+      }
+    });
+
+    async function uploadToCloudinary(file, userName) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', `events/${currentEvent}`);
+      formData.append('tags', `event_${currentEvent},${userName}`);
+
+      const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || "Upload failed");
+      }
+
+      return result;
+    }
+
+    async function submitUpload() {
+      const userName = document.getElementById('user-name').value.trim();
+      if (!userName) {
+        alert("Please enter your name.");
+        return;
+      }
+
+      const progress = document.getElementById('upload-progress');
+      progress.style.display = 'block';
+      const progressFill = document.getElementById('progress-fill');
+
+      for (let i = 0; i < pendingFiles.length; i++) {
+        const file = pendingFiles[i];
+
+        try {
+          const result = await uploadToCloudinary(file, userName);
+          const photo = {
+            id: result.public_id,
+            url: result.secure_url,
+            credit: userName,
+            filename: result.original_filename,
+            uploadedAt: new Date().toISOString()
+          };
+          const event = window.events.find(e => e.id === currentEvent);
+          if (event) {
+            event.photos.unshift(photo);
+            updatePhotosDisplay(currentEvent);
+          }
+        } catch (err) {
+          alert("Upload failed: " + err.message);
         }
 
-        function loadPhotosFromStorage() {
-            try {
-                const savedPhotos = JSON.parse(localStorage.getItem('eventPhotos')) || {};
-                Object.keys(savedPhotos).forEach(eventId => {
-                    const event = window.events.find(e => e.id === eventId);
-                    if (event && savedPhotos[eventId]) {
-                        event.photos = savedPhotos[eventId];
-                    }
-                });
-                console.log('Loaded photos from storage');
-            } catch (error) {
-                console.log('No saved photos found or error loading:', error);
-            }
-        }
+        const percent = ((i + 1) / pendingFiles.length) * 100;
+        progressFill.style.width = `${percent}%`;
+      }
 
-        function savePhotosToStorage() {
-            try {
-                const photosData = {};
-                window.events.forEach(event => {
-                    if (event.photos.length > 0) {
-                        photosData[event.id] = event.photos;
-                    }
-                });
-                localStorage.setItem('eventPhotos', JSON.stringify(photosData));
-                console.log('Saved photos to storage');
-            } catch (error) {
-                console.log('Error saving photos to storage:', error);
-            }
-        }
+      pendingFiles = [];
+      closeModal();
+    }
 
-        function generateEventsGrid() {
-            const grid = document.getElementById('events-grid');
-            if (!grid) {
-                console.error('Events grid not found');
-                return;
-            }
-            
-            grid.innerHTML = '';
-            
-            window.events.forEach(event => {
-                console.log('Generating box for event:', event.name, 'Photos:', event.photos.length);
-                
-                const eventBox = document.createElement('div');
-                eventBox.className = 'event-box';
-                eventBox.onclick = () => showEvent(event.id);
-                
-                const eventImage = document.createElement('div');
-                eventImage.className = 'event-image';
-                
-                const firstPhoto = event.photos.length > 0 ? event.photos[0] : null;
-                if (firstPhoto) {
-                    console.log('Setting thumbnail for:', event.name);
-                    const thumbnailUrl = firstPhoto.url.replace('/upload/', '/upload/c_fill,w_300,h_400,q_auto/');
-                    eventImage.style.backgroundImage = `url('${thumbnailUrl}')`;
-                    eventImage.style.backgroundSize = 'cover';
-                    eventImage.style.backgroundPosition = 'center';
-                    eventImage.innerHTML = '';
-                } else {
-                    eventImage.style.backgroundImage = 'none';
-                    eventImage.innerHTML = 'No photos yet';
-                }
-                
-                const eventName = document.createElement('div');
-                eventName.className = 'event-name';
-                eventName.textContent = event.name;
-                
-                eventBox.appendChild(eventImage);
-                eventBox.appendChild(eventName);
-                grid.appendChild(eventBox);
-            });
-        }
+    function closeModal() {
+      document.getElementById('upload-modal').style.display = 'none';
+      document.getElementById('upload-progress').style.display = 'none';
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('user-name').value = '';
+    }
 
-        function generateEventPages() {
-            const container = document.getElementById('event-pages');
-            container.innerHTML = '';
-            
-            window.events.forEach(event => {
-                const eventPage = document.createElement('div');
-                eventPage.id = `event-${event.id}`;
-                eventPage.className = 'event-page';
-                
-                const isConfigured = true;
-                
-                eventPage.innerHTML = `
-                    <button class="back-btn" onclick="showMain()">← Back to Events</button>
-                    <div class="event-header">
-                        <h1 class="event-title">${event.name}</h1>
-                        <button class="upload-btn" onclick="startUpload('${event.id}')">Upload</button>
-                    </div>
-                    <div class="photos-container" id="photos-${event.id}">
-                        ${event.photos.length === 0 ? '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>' : ''}
-                    </div>
-                `;
-                
-                container.appendChild(eventPage);
-                updatePhotosDisplay(event.id);
-            });
-        }
+    function updatePhotosDisplay(eventId) {
+      const event = window.events.find(e => e.id === eventId);
+      if (!event) return;
 
-        function showMain() {
-            document.getElementById('main-page').style.display = 'block';
-            document.querySelectorAll('.event-page').forEach(page => {
-                page.style.display = 'none';
-            });
-        }
+      const container = document.getElementById(`photos-${eventId}`);
+      if (!container) return;
 
-        function showEvent(eventId) {
-            document.getElementById('main-page').style.display = 'none';
-            document.querySelectorAll('.event-page').forEach(page => {
-                page.style.display = 'none';
-            });
-            document.getElementById(`event-${eventId}`).style.display = 'block';
-        }
+      container.innerHTML = '';
+      if (event.photos.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>';
+        return;
+      }
 
-        function startUpload(eventId) {
-            currentEvent = eventId;
-            console.log('Starting upload for event:', eventId);
-            document.getElementById('file-input').click();
-        }
+      event.photos.forEach(photo => {
+        const div = document.createElement('div');
+        div.className = 'photo-item';
 
-        document.getElementById('file-input').addEventListener('change', function(e) {
-            console.log('Files selected:', e.target.files.length, 'Current event:', currentEvent);
-            if (e.target.files.length > 0 && currentEvent) {
-                pendingFiles = Array.from(e.target.files);
-                document.getElementById('upload-modal').style.display = 'block';
-            } else if (!currentEvent) {
-                alert('Error: No event selected. Please try again.');
-            }
-        });
+        const img = document.createElement('img');
+        img.src = photo.url;
+        img.alt = photo.filename;
 
-        async function uploadToCloudinary(file, userName) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-            formData.append('folder', `events/${currentEvent}`);
-            formData.append('tags', `event_${currentEvent},${userName}`);
-            
-            try {
-                const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (!response.ok) {
-                    console.error('Cloudinary error response:', result);
-                    console.error('Response status:', response.status);
-                    console.error('Response text:', response.statusText);
-                    
-                    if (result.error && result.error.message && result.error.message.includes('preset')) {
-                        throw new Error(`Upload preset error. Try changing CLOUDINARY_UPLOAD_PRESET to 'ml_default' in the code. Error: ${result.error.message}`);
-                    }
-                    
-                    throw new Error(result.error?.message || `Upload failed: ${response.status} ${response.statusText}`);
-                }
-                
-                return result;
-            } catch (error) {
-                console.error('Upload error:', error);
-                throw error;
-            }
-        }
+        const meta = document.createElement('div');
+        meta.className = 'photo-meta';
+        meta.textContent = photo.credit ? `Uploaded by ${photo.credit}` : '';
 
-        async function submitUpload() {
-            const userName = document.getElementById('user-name').value.trim();
-            if (!userName) {
-                alert('Please enter your first name');
-                return;
-            }
-            
-            console.log('Current event before finding:', currentEvent);
-            
-            const event = window.events.find(e => e.id === currentEvent);
-            if (!event) {
-                console.log('Event not found:', currentEvent, 'Available events:', window.events.map(e => e.id));
-                alert('Error: Event not found. Please try again.');
-                closeModal();
-                return;
-            }
-            
-            document.getElementById('upload-progress').style.display = 'block';
-            document.getElementById('submit-upload').disabled = true;
-            document.getElementById('submit-upload').textContent = 'Uploading...';
-            
-            const eventId = currentEvent;
-            let uploadedCount = 0;
-            const totalFiles = pendingFiles.length;
-            
-            try {
-                for (let i = 0; i < pendingFiles.length; i++) {
-                    const file = pendingFiles[i];
-                    console.log(`Uploading file ${i + 1}/${totalFiles}:`, file.name);
-                    
-                    const progress = (i / totalFiles) * 100;
-                    document.getElementById('progress-fill').style.width = progress + '%';
-                    
-                    try {
-                        const cloudinaryResponse = await uploadToCloudinary(file, userName);
-                        
-                        const photo = {
-                            id: cloudinaryResponse.public_id,
-                            url: cloudinaryResponse.secure_url,
-                            credit: userName,
-                            filename: file.name,
-                            uploadedAt: new Date().toISOString()
-                        };
-                        
-                        event.photos.push(photo);
-                        uploadedCount++;
-                        
-                        console.log(`Successfully uploaded ${file.name} to Cloudinary`);
-                        
-                    } catch (uploadError) {
-                        console.error(`Failed to upload ${file.name}:`, uploadError);
-                        alert(`Failed to upload ${file.name}: ${uploadError.message}`);
-                    }
-                }
-                
-                document.getElementById('progress-fill').style.width = '100%';
-                
-                if (uploadedCount > 0) {
-                    console.log(`Successfully uploaded ${uploadedCount}/${totalFiles} photos for event:`, eventId);
-                    
-                    savePhotosToStorage();
-                    
-                    updatePhotosDisplay(eventId);
-                    generateEventsGrid();
-                    
-                    alert(`Successfully uploaded ${uploadedCount} photo(s)!`);
-                } else {
-                    alert('No photos were uploaded successfully. Please try again.');
-                }
-                
-            } catch (error) {
-                console.error('Upload process failed:', error);
-                alert('Upload failed: ' + error.message);
-            } finally {
-                closeModal();
-            }
-        }
+        div.appendChild(img);
+        div.appendChild(meta);
+        container.appendChild(div);
+      });
+    }
 
-        function updatePhotosDisplay(eventId) {
-            const event = window.events.find(e => e.id === eventId);
-            if (!event) {
-                console.error('Event not found:', eventId, 'Available events:', window.events.map(e => e.id));
-                return;
-            }
-            
-            const container = document.getElementById(`photos-${eventId}`);
-            
-            console.log('Updating photos for:', eventId, 'Photo count:', event.photos.length);
-            
-            if (!container) {
-                console.error('Photos container not found for:', eventId);
-                return;
-            }
-            
-            if (event.photos.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>';
-                return;
-            }
-            
-            container.innerHTML = '';
-            event.photos.forEach((photo, index) => {
-                console.log('Creating photo element for:', photo.filename);
-                
-                const photoDiv = document.createElement('div');
-                photoDiv.className = 'photo-item';
-                
-                const img = document.createElement('img');
-                const optimizedUrl = photo.url.replace('/upload/', '/upload/c_limit,w_300,q_auto,f_auto/');
-                img.src = optimizedUrl;
-                img.alt = 'Event photo';
-                img.onload = function() {
-                    console.log('Image loaded successfully:', photo.filename);
-                };
-                img.onerror = function() {
-                    console.error('Image failed to load:', photo.filename);
-                    img.src = photo.url;
-                };
-                
-                const overlay = document.createElement('div');
-                overlay.className = 'photo-overlay';
-                overlay.innerHTML = `
-                    <div class="photo-credit">${photo.credit}</div>
-                    <div>
-                        <button class="download-btn" onclick="downloadPhoto('${eventId}', ${index})">Download</button>
-                        <button class="delete-btn" onclick="deletePhoto('${eventId}', ${index})">Delete</button>
-                    </div>
-                `;
-                
-                photoDiv.appendChild(img);
-                photoDiv.appendChild(overlay);
-                container.appendChild(photoDiv);
-            });
-        }
-
-        function downloadPhoto(eventId, photoIndex) {
-            const event = window.events.find(e => e.id === eventId);
-            if (!event || !event.photos[photoIndex]) {
-                console.error('Photo not found');
-                return;
-            }
-            
-            const photo = event.photos[photoIndex];
-            
-            const link = document.createElement('a');
-            link.href = photo.url;
-            link.download = photo.filename || `photo-${photoIndex + 1}.jpg`;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        async function deletePhoto(eventId, photoIndex) {
-            const event = window.events.find(e => e.id === eventId);
-            if (!event || !event.photos[photoIndex]) {
-                console.error('Photo not found');
-                return;
-            }
-            
-            const photo = event.photos[photoIndex];
-            
-            const password = prompt('Enter password to delete this photo:');
-            if (password === null) return;
-            
-            if (password !== DELETE_PASSWORD) {
-                alert('Incorrect password. Photo not deleted.');
-                return;
-            }
-            
-            const confirmDelete = confirm(`Are you sure you want to delete "${photo.filename}"? This cannot be undone.`);
-            if (!confirmDelete) return;
-            
-            try {
-                console.log(`Attempting to delete photo: ${photo.filename}`);
-                
-                event.photos.splice(photoIndex, 1);
-                
-                savePhotosToStorage();
-                
-                updatePhotosDisplay(eventId);
-                generateEventsGrid();
-                
-                console.log(`Successfully deleted photo: ${photo.filename}`);
-                alert('Photo deleted successfully!');
-                
-            } catch (error) {
-                console.error('Error deleting photo:', error);
-                alert('Error deleting photo: ' + error.message);
-            }
-        }
-
-        function closeModal() {
-            document.getElementById('upload-modal').style.display = 'none';
-            document.getElementById('upload-progress').style.display = 'none';
-            document.getElementById('user-name').value = '';
-            document.getElementById('submit-upload').disabled = false;
-            document.getElementById('submit-upload').textContent = 'Submit';
-            document.getElementById('progress-fill').style.width = '0%';
-            pendingFiles = [];
-            
-            document.getElementById('file-input').value = '';
-        }
-
-        window.onload = init;
-    </script>
+    init();
+  </script>
 </body>
 </html>
