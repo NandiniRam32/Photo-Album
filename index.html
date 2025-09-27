@@ -562,35 +562,106 @@
     }
 
     function updatePhotosDisplay(eventId) {
-      const event = window.events.find(e => e.id === eventId);
-      if (!event) return;
+        const event = window.events.find(e => e.id === eventId);
+        if (!event) return;
 
-      const container = document.getElementById(`photos-${eventId}`);
-      if (!container) return;
+        const container = document.getElementById(`photos-${eventId}`);
+        if (!container) return;
 
-      container.innerHTML = '';
-      if (event.photos.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>';
-        return;
-      }
+        container.innerHTML = '';
+        if (event.photos.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #888;">No photos uploaded yet. Be the first to share!</p>';
+            return;
+        }
 
-      event.photos.forEach(photo => {
-        const div = document.createElement('div');
-        div.className = 'photo-item';
+        event.photos.forEach(photo => {
+            const div = document.createElement('div');
+            div.className = 'photo-item';
 
-        const img = document.createElement('img');
-        img.src = photo.url;
-        img.alt = photo.filename;
+            const img = document.createElement('img');
+            img.src = photo.url;
+            img.alt = photo.filename;
 
-        const meta = document.createElement('div');
-        meta.className = 'photo-meta';
-        meta.textContent = photo.credit ? `Uploaded by ${photo.credit}` : '';
+            const meta = document.createElement('div');
+            meta.className = 'photo-meta';
+            meta.textContent = photo.credit ? `Uploaded by ${photo.credit}` : '';
 
-        div.appendChild(img);
-        div.appendChild(meta);
-        container.appendChild(div);
-      });
-    }
+            const actions = document.createElement('div');
+            actions.className = 'photo-actions';
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.innerHTML = '⬇️';
+            downloadBtn.title = 'Download';
+            downloadBtn.onclick = (e) => {
+            e.stopPropagation();
+            const link = document.createElement('a');
+            link.href = photo.url;
+            link.download = photo.filename;
+            link.click();
+            };
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '🗑️';
+            deleteBtn.title = 'Delete';
+            deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            const password = prompt("Enter password to delete this photo:");
+            if (password === DELETE_PASSWORD) {
+                if (confirm("Are you sure you want to delete this photo?")) {
+                deletePhotoFromCloudinary(photo.id, eventId);
+                }
+            } else {
+                alert("Incorrect password.");
+            }
+            };
+
+            actions.appendChild(downloadBtn);
+            actions.appendChild(deleteBtn);
+
+            div.appendChild(img);
+            div.appendChild(meta);
+            div.appendChild(actions);
+
+            container.appendChild(div);
+        });
+        }
+
+        async function deletePhotoFromCloudinary(publicId, eventId) {
+            try {
+                const timestamp = Math.floor(Date.now() / 1000);
+                const apiKey = 'your_api_key';
+                const apiSecret = 'your_api_secret';
+                const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+                const signature = CryptoJS.SHA1(stringToSign).toString();
+
+                const formData = new FormData();
+                formData.append('public_id', publicId);
+                formData.append('api_key', apiKey);
+                formData.append('timestamp', timestamp);
+                formData.append('signature', signature);
+
+                const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/destroy`, {
+                method: 'POST',
+                body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.result === 'ok') {
+                const event = window.events.find(e => e.id === eventId);
+                if (event) {
+                    event.photos = event.photos.filter(photo => photo.id !== publicId);
+                    updatePhotosDisplay(eventId);
+                    alert("Photo deleted.");
+                }
+                } else {
+                alert("Failed to delete photo.");
+                }
+            } catch (err) {
+                console.error("Delete failed:", err);
+                alert("Error deleting photo.");
+            }
+            }
 
     init();
   </script>
