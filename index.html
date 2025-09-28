@@ -397,7 +397,6 @@
 
     <div id="event-pages"></div>
 
-    <!-- Fullscreen Photo Modal -->
     <div id="fullscreen-modal" class="fullscreen-modal">
         <div class="fullscreen-content">
             <img id="fullscreen-image" class="fullscreen-image" alt="Full size photo">
@@ -417,7 +416,6 @@
     </div>
 
     <script>
-        // Define the photo directories
         const PHOTO_DIRECTORIES = {
             'mock-trial-photos-2025': 'Photos/Mock-Trial-2025',
             'garba-weekend-2025': 'Photos/Garba-Weekend-2025',
@@ -429,10 +427,8 @@
             'event-6': 'Photos/Event-6'
         };
 
-        // Supported image extensions
         const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
 
-        // Fullscreen modal variables
         let currentFullscreenEvent = null;
         let currentPhotoIndex = 0;
         let isFullscreenOpen = false;
@@ -462,7 +458,6 @@
         async function loadAllPhotos() {
             console.log('Loading photos from local directories...');
             
-            // Reset all events
             window.events.forEach(event => event.photos = []);
             
             let totalPhotosFound = 0;
@@ -493,24 +488,13 @@
         }
 
         async function loadPhotosFromDirectory(directoryPath, eventId) {
-            // Note: Due to browser security restrictions, we cannot directly access local file system
-            // This is a demonstration of how it would work with a server or file input
             
             const photos = [];
-            
-            // For demonstration, we'll create some sample photo data
-            // In a real implementation, you would need either:
-            // 1. A local web server that can list directory contents
-            // 2. A predefined list of image files
-            // 3. Use the File API with user selection
-            
-            // Sample implementation - replace with actual directory reading logic
             const samplePhotos = await getSamplePhotosForEvent(eventId);
             
             return samplePhotos;
         }
 
-        // Sample data for demonstration - replace with actual directory reading
         async function getSamplePhotosForEvent(eventId) {
             const photoSets = {
                 'mock-trial-photos-2025': [
@@ -531,6 +515,28 @@
                 ],
                 'garba-weekend-2025': [
                     'DSC_1051.jpg',
+                    'PXL_20250927_043957196.jpg',
+                    'PXL_20250927_043959581.jpg',
+                    'PXL_20250927_15012085.jpg',
+                    'PXL_20250927_150120914.jpg',
+                    'PXL_20250927_150121454.jpg',
+                    'PXL_20250927_163258857.jpg',
+                    'PXL_20250927_181119297.jpg',
+                    'PXL_20250927_181119816.jpg',
+                    'PXL_20250927_185243585.jpg',
+                    'PXL_1.jpg',
+                    'PXL_2.jpg',
+                    'PXL_3.jpg',
+                    'PXL_4.jpg',
+                    'PXL_5.jpg',
+                    'PXL_6.jpg',
+                    'PXL_7.jpg',
+                    'PXL_8.jpg',
+                    'PXL_9.jpg',
+                    'PXL_10.jpg',
+                    'PXL_11.jpg',
+                    'PXL_12.jpg',
+                    'PXL_13.jpg',
                 ]
             };
             
@@ -644,7 +650,6 @@
                 img.alt = 'Event photo';
                 img.loading = 'lazy';
                 
-                // Handle image load errors
                 img.onerror = function() {
                     this.style.display = 'none';
                     const errorDiv = document.createElement('div');
@@ -673,7 +678,6 @@
                     </div>
                 `;
                 
-                // Add click event to open fullscreen
                 photoDiv.onclick = () => openFullscreen(eventId, index);
                 
                 photoDiv.appendChild(img);
@@ -688,7 +692,6 @@
             
             const photo = event.photos[photoIndex];
             
-            // Create a temporary anchor element to trigger download
             const link = document.createElement('a');
             link.href = photo.url;
             link.download = photo.filename;
@@ -729,7 +732,6 @@
             document.getElementById('setup-notice').style.display = 'none';
         }
 
-        // Fullscreen photo functionality
         function openFullscreen(eventId, photoIndex) {
             const event = window.events.find(e => e.id === eventId);
             if (!event || !event.photos[photoIndex]) return;
@@ -750,7 +752,6 @@
             
             modal.style.display = 'flex';
             
-            // Add keyboard event listener
             document.addEventListener('keydown', handleFullscreenKeyboard);
         }
 
@@ -761,7 +762,6 @@
             currentFullscreenEvent = null;
             currentPhotoIndex = 0;
             
-            // Remove keyboard event listener
             document.removeEventListener('keydown', handleFullscreenKeyboard);
         }
 
@@ -815,7 +815,6 @@
             }
         }
 
-        // Close fullscreen when clicking outside the image
         document.addEventListener('DOMContentLoaded', function() {
             const modal = document.getElementById('fullscreen-modal');
             modal.addEventListener('click', function(event) {
@@ -825,11 +824,8 @@
             });
         });
 
-        // Initialize the gallery when the page loads
         window.onload = init;
         
-        // Note: For actual file system access, you would need to implement server-side directory reading
-        // or use a local web server that can serve directory listings and files
     </script>
 </body>
 </html>
