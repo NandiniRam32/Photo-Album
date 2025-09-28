@@ -317,6 +317,37 @@
             font-size: 14px;
         }
 
+        .setup-notice {
+            background-color: #1a1a2e;
+            border: 2px solid #16213e;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 800px;
+            border-radius: 8px;
+            text-align: left;
+        }
+
+        .setup-notice h3 {
+            color: #4CAF50;
+            margin-bottom: 15px;
+        }
+
+        .setup-notice code {
+            background-color: #2a2a3e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #ffcc00;
+        }
+
+        .setup-notice ol {
+            margin-left: 20px;
+            line-height: 1.6;
+        }
+
+        .setup-notice li {
+            margin-bottom: 8px;
+        }
+
         @media (max-width: 768px) {
             .events-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -348,8 +379,22 @@
             Nandini Photos Album
             <button class="refresh-btn" onclick="refreshAllEvents()">Refresh</button>
         </h1>
+        
+        <div id="setup-notice" class="setup-notice">
+            <h3>🔧 Setup Required</h3>
+            <p>To use this photo gallery, you need to configure Supabase:</p>
+            <ol>
+                <li>Go to <a href="https://supabase.com" target="_blank" style="color: #4CAF50;">supabase.com</a> and create a free account</li>
+                <li>Create a new project</li>
+                <li>Go to Settings → API and copy your <code>URL</code> and <code>anon public key</code></li>
+                <li>Replace the values in the <code>SUPABASE_CONFIG</code> object in the code</li>
+                <li>The database table and storage bucket will be created automatically</li>
+            </ol>
+            <p style="margin-top: 15px; color: #888;">Once configured, photos will persist across deployments and be accessible to all users!</p>
+        </div>
+        
         <div class="events-grid" id="events-grid">
-            <div class="loading-indicator">Loading photos from Cloudinary...</div>
+            <div class="loading-indicator">Loading photos from Supabase...</div>
         </div>
     </div>
 
@@ -374,13 +419,20 @@
 
     <input type="file" id="file-input" class="file-input" accept="image/*" multiple>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Configuration
-        const CLOUDINARY_CLOUD_NAME = 'dent1anto';
-        const UPLOAD_PRESETS = ['ml_default', 'unsigned_preset', 'default_unsigned', 'photos_upload'];
-        const DELETE_PASSWORD = 'admin123';
+        // Configuration - REPLACE THESE WITH YOUR SUPABASE PROJECT VALUES
+        const SUPABASE_CONFIG = {
+            url: 'https://qpaheggomyfkecqbcfmu.supabase.co', // e.g., 'https://your-project.supabase.co'
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwYWhlZ2dvbXlma2VjcWJjZm11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMjY4NTIsImV4cCI6MjA3NDYwMjg1Mn0.hLOXGdX5lMQjaXhE-qoHby4pO2r9HUyzKbS1s9HOoZQ' // Your anon/public key
+        };
 
-        let CURRENT_UPLOAD_PRESET = UPLOAD_PRESETS[0];
+        const DELETE_PASSWORD = 'admin123';
+        const STORAGE_BUCKET = 'photos';
+        const TABLE_NAME = 'event_photos';
+
+        let supabase = null;
+        let supabaseReady = false;
 
         window.events = [
             { id: 'mock-trial-photos-2025', name: 'Mock Trial Photos 2025', photos: [] },
@@ -397,163 +449,119 @@
         let pendingFiles = [];
 
         async function init() {
-            await loadAllPhotosFromCloudinary();
+            await initSupabase();
+            if (supabaseReady) {
+                await setupDatabase();
+                await loadAllPhotosFromSupabase();
+                document.getElementById('setup-notice').style.display = 'none';
+            }
             generateEventsGrid();
             generateEventPages();
         }
 
-        // Load all photos from Cloudinary using comprehensive API attempts
-        async function loadAllPhotosFromCloudinary() {
-            console.log('Loading photos from Cloudinary...');
-            
-            for (const event of window.events) {
-                await loadPhotosForEvent(event.id);
-            }
-        }
-
-        // Comprehensive photo loading with multiple API attempts
-        async function loadPhotosForEvent(eventId) {
-            const event = window.events.find(e => e.id === eventId);
-            if (!event) return;
-
-            console.log(`Loading photos for: ${eventId}`);
-
-            // Strategy 1: Direct tag-based endpoints
-            const tagUrls = [
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/event_${eventId}.json`,
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/event${eventId}.json`,
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/${eventId}.json`
-            ];
-
-            for (const url of tagUrls) {
-                const result = await tryFetchPhotos(url, eventId);
-                if (result) {
-                    event.photos = result;
-                    console.log(`Loaded ${result.length} photos for ${eventId} via tag API`);
-                    return;
-                }
-            }
-
-            // Strategy 2: Folder-based endpoints
-            const folderUrls = [
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/events/${eventId}.json`,
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/events-${eventId}.json`
-            ];
-
-            for (const url of folderUrls) {
-                const result = await tryFetchPhotos(url, eventId);
-                if (result) {
-                    event.photos = result;
-                    console.log(`Loaded ${result.length} photos for ${eventId} via folder API`);
-                    return;
-                }
-            }
-
-            // Strategy 3: Try fetching all photos and filter
-            const generalUrls = [
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/events.json`,
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list/photos.json`,
-                `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/list.json`
-            ];
-
-            for (const url of generalUrls) {
-                try {
-                    console.log(`Trying general listing: ${url}`);
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.resources && data.resources.length > 0) {
-                            const filtered = filterPhotosForEvent(data.resources, eventId);
-                            if (filtered.length > 0) {
-                                event.photos = filtered;
-                                console.log(`Loaded ${filtered.length} photos for ${eventId} via filtered general API`);
-                                return;
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.log(`Failed ${url}: ${error.message}`);
-                }
-            }
-
-            console.log(`No photos found for ${eventId} - may need to enable public API access in Cloudinary settings`);
-            event.photos = [];
-        }
-
-        // Try to fetch and process photos from a URL
-        async function tryFetchPhotos(url, eventId) {
+        async function initSupabase() {
             try {
-                console.log(`Trying: ${url}`);
-                const response = await fetch(url);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.resources && data.resources.length > 0) {
-                        return processPhotoResources(data.resources);
-                    }
-                } else if (response.status !== 404) {
-                    console.log(`HTTP ${response.status} for ${url}`);
+                if (SUPABASE_CONFIG.url === 'YOUR_SUPABASE_URL_HERE' || 
+                    SUPABASE_CONFIG.anonKey === 'YOUR_SUPABASE_ANON_KEY_HERE') {
+                    console.log('Supabase configuration needed');
+                    return;
                 }
+
+                supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
                 
-                return null;
+                // Test the connection
+                const { data, error } = await supabase.from('_test').select('*').limit(1);
+                // This will fail if not connected, but that's ok - we just want to test auth
+                
+                supabaseReady = true;
+                console.log('Supabase initialized successfully');
             } catch (error) {
-                console.log(`Failed ${url}: ${error.message}`);
-                return null;
+                console.error('Failed to initialize Supabase:', error);
+                supabaseReady = false;
             }
         }
 
-        // Filter photos that belong to a specific event
-        function filterPhotosForEvent(resources, eventId) {
-            return resources.filter(resource => {
-                if (!resource.secure_url) return false;
-                
-                // Check tags
-                const matchesTags = resource.tags && resource.tags.some(tag => 
-                    tag === `event_${eventId}` || 
-                    tag === `event${eventId}` || 
-                    tag === eventId
-                );
-                
-                // Check folder/path
-                const matchesPath = resource.public_id && (
-                    resource.public_id.includes(`events/${eventId}`) ||
-                    resource.public_id.includes(`events-${eventId}`) ||
-                    resource.public_id.includes(eventId)
-                );
-                
-                return matchesTags || matchesPath;
-            }).map(resource => processPhotoResource(resource));
-        }
+        async function setupDatabase() {
+            if (!supabaseReady) return;
 
-        // Process photo resources into our format
-        function processPhotoResources(resources) {
-            return resources
-                .filter(resource => resource.secure_url)
-                .map(resource => processPhotoResource(resource))
-                .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-        }
+            try {
+                // Create the photos table if it doesn't exist
+                const { error: tableError } = await supabase.rpc('create_photos_table_if_not_exists');
+                
+                // If RPC doesn't exist, try direct table creation (this might fail on some setups)
+                if (tableError) {
+                    console.log('Creating table via direct SQL...');
+                    // The table creation will be handled by Supabase dashboard or migration
+                }
 
-        // Process individual photo resource
-        function processPhotoResource(resource) {
-            let credit = 'Unknown';
-            if (resource.tags && Array.isArray(resource.tags)) {
-                const userTag = resource.tags.find(tag => 
-                    !tag.startsWith('event_') && 
-                    !tag.startsWith('event') && 
-                    !tag.includes('-') &&
-                    tag.length > 0
-                );
-                if (userTag) credit = userTag;
+                // Create storage bucket if it doesn't exist
+                const { data: buckets } = await supabase.storage.listBuckets();
+                const bucketExists = buckets?.some(bucket => bucket.name === STORAGE_BUCKET);
+                
+                if (!bucketExists) {
+                    const { error: bucketError } = await supabase.storage.createBucket(STORAGE_BUCKET, {
+                        public: true,
+                        allowedMimeTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+                        fileSizeLimit: 10485760 // 10MB
+                    });
+                    if (bucketError) {
+                        console.log('Bucket creation handled by setup:', bucketError.message);
+                    }
+                }
+
+                console.log('Database setup completed');
+            } catch (error) {
+                console.error('Database setup error:', error);
             }
+        }
 
-            return {
-                id: resource.public_id,
-                url: resource.secure_url,
-                credit: credit,
-                filename: (resource.public_id ? resource.public_id.split('/').pop() : 'photo') + '.jpg',
-                uploadedAt: resource.created_at || new Date().toISOString(),
-                source: 'cloudinary'
-            };
+        async function loadAllPhotosFromSupabase() {
+            if (!supabaseReady) return;
+
+            console.log('Loading photos from Supabase...');
+            
+            try {
+                // Load all photos from database
+                const { data: photos, error } = await supabase
+                    .from(TABLE_NAME)
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error loading photos:', error);
+                    return;
+                }
+
+                // Group photos by event
+                window.events.forEach(event => event.photos = []);
+                
+                if (photos) {
+                    photos.forEach(photo => {
+                        const event = window.events.find(e => e.id === photo.event_id);
+                        if (event) {
+                            event.photos.push({
+                                id: photo.id,
+                                url: getSupabaseImageUrl(photo.file_path),
+                                credit: photo.credit,
+                                filename: photo.filename,
+                                uploadedAt: photo.created_at,
+                                source: 'supabase',
+                                filePath: photo.file_path
+                            });
+                        }
+                    });
+                }
+
+                console.log('Photos loaded from Supabase');
+            } catch (error) {
+                console.error('Failed to load photos:', error);
+            }
+        }
+
+        function getSupabaseImageUrl(filePath) {
+            if (!supabaseReady) return '';
+            const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(filePath);
+            return data.publicUrl;
         }
 
         function generateEventsGrid() {
@@ -571,8 +579,7 @@
                 eventImage.className = 'event-image';
                 
                 if (event.photos.length > 0 && event.photos[0].url) {
-                    const thumbnailUrl = event.photos[0].url.replace('/upload/', '/upload/c_fill,w_300,h_400,q_auto/');
-                    eventImage.style.backgroundImage = `url('${thumbnailUrl}')`;
+                    eventImage.style.backgroundImage = `url('${event.photos[0].url}')`;
                     eventImage.innerHTML = '';
                 } else {
                     eventImage.innerHTML = 'No photos yet';
@@ -603,7 +610,7 @@
                         <h1 class="event-title">${event.name}</h1>
                         <div>
                             <button class="refresh-btn" onclick="refreshEvent('${event.id}')">Refresh</button>
-                            <button class="upload-btn" onclick="startUpload('${event.id}')">Upload</button>
+                            <button class="upload-btn" onclick="startUpload('${event.id}')" ${!supabaseReady ? 'disabled' : ''}>Upload</button>
                         </div>
                     </div>
                     <div class="photos-container" id="photos-${event.id}">
@@ -636,7 +643,10 @@
             if (!event || !container) return;
             
             if (event.photos.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #888; margin: 40px 0;">No photos found. Upload some photos or check Cloudinary API access.</p>';
+                const message = supabaseReady 
+                    ? 'No photos found. Upload some photos to get started!'
+                    : 'No photos found. Please configure Supabase to enable photo uploads.';
+                container.innerHTML = `<p style="text-align: center; color: #888; margin: 40px 0;">${message}</p>`;
                 return;
             }
             
@@ -648,8 +658,7 @@
                 photoDiv.className = 'photo-item';
                 
                 const img = document.createElement('img');
-                const optimizedUrl = photo.url.replace('/upload/', '/upload/c_limit,w_300,q_auto,f_auto/');
-                img.src = optimizedUrl;
+                img.src = photo.url;
                 img.alt = 'Event photo';
                 img.loading = 'lazy';
                 
@@ -670,6 +679,10 @@
         }
 
         function startUpload(eventId) {
+            if (!supabaseReady) {
+                alert('Please configure Supabase first to enable photo uploads.');
+                return;
+            }
             currentEvent = eventId;
             document.getElementById('file-input').click();
         }
@@ -681,45 +694,65 @@
             }
         });
 
-        async function uploadToCloudinary(file, userName) {
-            let lastError = null;
-            
-            for (const preset of UPLOAD_PRESETS) {
-                try {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('upload_preset', preset);
-                    formData.append('folder', `events/${currentEvent}`);
-                    formData.append('tags', `event_${currentEvent},${userName}`);
-                    formData.append('context', `credit=${userName}|event=${currentEvent}`);
-                    
-                    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (response.ok) {
-                        console.log(`Upload successful with preset: ${preset}`);
-                        CURRENT_UPLOAD_PRESET = preset;
-                        return result;
-                    } else {
-                        lastError = new Error(result.error?.message || `Upload failed: ${response.status}`);
-                    }
-                    
-                } catch (error) {
-                    lastError = error;
-                }
+        async function uploadToSupabase(file, userName) {
+            if (!supabaseReady) {
+                throw new Error('Supabase not configured');
             }
-            
-            throw lastError || new Error('All upload presets failed');
+
+            try {
+                // Create unique filename
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${currentEvent}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                
+                // Upload file to storage
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .upload(fileName, file, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    throw uploadError;
+                }
+
+                // Save photo metadata to database
+                const { data: photoData, error: dbError } = await supabase
+                    .from(TABLE_NAME)
+                    .insert({
+                        event_id: currentEvent,
+                        filename: file.name,
+                        file_path: fileName,
+                        credit: userName,
+                        file_size: file.size,
+                        mime_type: file.type
+                    })
+                    .select()
+                    .single();
+
+                if (dbError) {
+                    // Try to cleanup uploaded file
+                    await supabase.storage.from(STORAGE_BUCKET).remove([fileName]);
+                    throw dbError;
+                }
+
+                return photoData;
+
+            } catch (error) {
+                console.error('Upload to Supabase failed:', error);
+                throw error;
+            }
         }
 
         async function submitUpload() {
             const userName = document.getElementById('user-name').value.trim();
             if (!userName) {
                 alert('Please enter your first name');
+                return;
+            }
+
+            if (!supabaseReady) {
+                alert('Supabase not configured. Please set up your configuration first.');
                 return;
             }
             
@@ -744,15 +777,16 @@
                     document.getElementById('progress-fill').style.width = progress + '%';
                     
                     try {
-                        const result = await uploadToCloudinary(file, userName);
+                        const result = await uploadToSupabase(file, userName);
                         
                         const photo = {
-                            id: result.public_id,
-                            url: result.secure_url,
+                            id: result.id,
+                            url: getSupabaseImageUrl(result.file_path),
                             credit: userName,
                             filename: file.name,
-                            uploadedAt: new Date().toISOString(),
-                            source: 'cloudinary'
+                            uploadedAt: result.created_at,
+                            source: 'supabase',
+                            filePath: result.file_path
                         };
                         
                         event.photos.unshift(photo);
@@ -769,7 +803,7 @@
                 if (uploadedCount > 0) {
                     updatePhotosDisplay(currentEvent);
                     generateEventsGrid();
-                    alert(`Successfully uploaded ${uploadedCount} photo(s)! Note: Photos may take a few minutes to appear in the API listings.`);
+                    alert(`Successfully uploaded ${uploadedCount} photo(s)!`);
                 } else {
                     alert('No photos were uploaded successfully.');
                 }
@@ -807,19 +841,50 @@
                 return;
             }
             
-            if (!confirm(`Delete "${photo.filename}"? This removes it from the gallery view only.`)) return;
+            if (!confirm(`Delete "${photo.filename}"? This will permanently remove it.`)) return;
+
+            if (!supabaseReady) {
+                alert('Cannot delete: Supabase not configured.');
+                return;
+            }
             
-            event.photos.splice(photoIndex, 1);
-            updatePhotosDisplay(eventId);
-            generateEventsGrid();
-            alert('Photo removed from gallery view.');
+            try {
+                // Delete from database
+                const { error: dbError } = await supabase
+                    .from(TABLE_NAME)
+                    .delete()
+                    .eq('id', photo.id);
+
+                if (dbError) {
+                    throw dbError;
+                }
+
+                // Delete from storage
+                const { error: storageError } = await supabase.storage
+                    .from(STORAGE_BUCKET)
+                    .remove([photo.filePath]);
+
+                if (storageError) {
+                    console.warn('Storage deletion failed:', storageError);
+                }
+
+                // Remove from local array
+                event.photos.splice(photoIndex, 1);
+                updatePhotosDisplay(eventId);
+                generateEventsGrid();
+                alert('Photo deleted successfully.');
+
+            } catch (error) {
+                console.error('Delete failed:', error);
+                alert('Failed to delete photo: ' + error.message);
+            }
         }
 
         async function refreshAllEvents() {
-            document.getElementById('events-grid').innerHTML = '<div class="loading-indicator">Refreshing from Cloudinary...</div>';
+            document.getElementById('events-grid').innerHTML = '<div class="loading-indicator">Refreshing from Supabase...</div>';
             
             window.events.forEach(event => event.photos = []);
-            await loadAllPhotosFromCloudinary();
+            await loadAllPhotosFromSupabase();
             generateEventsGrid();
             
             const currentEventPage = document.querySelector('.event-page[style*="block"]');
@@ -838,7 +903,7 @@
             const event = window.events.find(e => e.id === eventId);
             if (event) event.photos = [];
             
-            await loadPhotosForEvent(eventId);
+            await loadAllPhotosFromSupabase();
             updatePhotosDisplay(eventId);
             generateEventsGrid();
         }
