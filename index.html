@@ -495,58 +495,115 @@
             return samplePhotos;
         }
 
+        // async function getSamplePhotosForEvent(eventId) {
+        //     const photoSets = {
+        //         'mock-trial-photos-2025': [
+        //             'Final-274.jpg',
+        //             'Final-216.jpg',
+        //             'Final-249.jpg',
+        //             'Final-250.jpg',
+        //             'Final-251.jpg',
+        //             'Final-266.jpg',
+        //             'Final-267.jpg',
+        //             'Final-268.jpg',
+        //             'Final-269.jpg',
+        //             'Final-270.jpg',
+        //             'Final-271.jpg',
+        //             'Final-272.jpg',
+        //             'Final-274.jpg',
+        //             'Final-275.jpg',
+        //         ],
+        //         'garba-weekend-2025': [
+        //             'DSC_1051.jpg',
+        //             'PXL_20250927_043957196.jpg',
+        //             'PXL_20250927_043959581.jpg',
+        //             'PXL_20250927_15012085.jpg',
+        //             'PXL_20250927_150120914.jpg',
+        //             'PXL_20250927_150121454.jpg',
+        //             'PXL_20250927_163258857.jpg',
+        //             'PXL_20250927_181119297.jpg',
+        //             'PXL_20250927_181119816.jpg',
+        //             'PXL_20250927_185243585.jpg',
+        //             'PXL_1.jpg',
+        //             'PXL_2.jpg',
+        //             'PXL_3.jpg',
+        //             'PXL_4.jpg',
+        //             'PXL_5.jpg',
+        //             'PXL_6.jpg',
+        //             'PXL_7.jpg',
+        //             'PXL_8.jpg',
+        //             'PXL_9.jpg',
+        //             'PXL_10.jpg',
+        //             'PXL_11.jpg',
+        //             'PXL_12.jpg',
+        //             'PXL_13.jpg',
+        //         ]
+        //     };
+            
+        //     const fileNames = photoSets[eventId] || [];
+        //     const directory = PHOTO_DIRECTORIES[eventId];
+            
+        //     return fileNames.map((fileName, index) => ({
+        //         id: `${eventId}_${index}`,
+        //         url: `${directory}/${fileName}`,
+        //         filename: fileName,
+        //         credit: 'Unknown',
+        //         uploadedAt: new Date().toISOString()
+        //     }));
+        // }
+
         async function getSamplePhotosForEvent(eventId) {
             const photoSets = {
                 'mock-trial-photos-2025': [
-                    'Final-274.jpg',
-                    'Final-216.jpg',
-                    'Final-249.jpg',
-                    'Final-250.jpg',
-                    'Final-251.jpg',
-                    'Final-266.jpg',
-                    'Final-267.jpg',
-                    'Final-268.jpg',
-                    'Final-269.jpg',
-                    'Final-270.jpg',
-                    'Final-271.jpg',
-                    'Final-272.jpg',
-                    'Final-274.jpg',
-                    'Final-275.jpg',
+                    { url: 'https://i.imgur.com/QLzPnAm.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/t3ovFoB.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/zMhsnYV.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/ASqpgtq.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/3Y8rDF2.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/qLigfuw.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/ZdKu6Qx.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/wY1dXty.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/oIQNYSU.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/pyFRga4.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/oLhbf3k.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/mNsNCG4.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/GTEgjTe.jpg', filename: '' },
                 ],
                 'garba-weekend-2025': [
-                    'DSC_1051.jpg',
-                    'PXL_20250927_043957196.jpg',
-                    'PXL_20250927_043959581.jpg',
-                    'PXL_20250927_15012085.jpg',
-                    'PXL_20250927_150120914.jpg',
-                    'PXL_20250927_150121454.jpg',
-                    'PXL_20250927_163258857.jpg',
-                    'PXL_20250927_181119297.jpg',
-                    'PXL_20250927_181119816.jpg',
-                    'PXL_20250927_185243585.jpg',
-                    'PXL_1.jpg',
-                    'PXL_2.jpg',
-                    'PXL_3.jpg',
-                    'PXL_4.jpg',
-                    'PXL_5.jpg',
-                    'PXL_6.jpg',
-                    'PXL_7.jpg',
-                    'PXL_8.jpg',
-                    'PXL_9.jpg',
-                    'PXL_10.jpg',
-                    'PXL_11.jpg',
-                    'PXL_12.jpg',
-                    'PXL_13.jpg',
+                    { url: 'https://i.imgur.com/s8PCLxg.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/xk4wwR5.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/rTas6fC.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/bM8raI8.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/r2meqTD.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/KjaBntr.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/oHhiGPQ.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/UqpVGgA.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/UpNblJo.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/pQvxRZ9.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/4rqX5oj.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/ILH0Yqj.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/dRYAKx2.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/QVfu6Kb.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/PuhrCz0.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/tMXkuHv.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/XToduay.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/Lq2w76k.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/a1d8WDP.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/y6Meywt.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/XQLXK0s.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/x2jxq4v.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/ey8Bazc.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/7BCXqW6.jpg', filename: '' },
+                    { url: 'https://i.imgur.com/E493dRK.jpg', filename: '' },
                 ]
             };
             
-            const fileNames = photoSets[eventId] || [];
-            const directory = PHOTO_DIRECTORIES[eventId];
+            const photos = photoSets[eventId] || [];
             
-            return fileNames.map((fileName, index) => ({
+            return photos.map((photo, index) => ({
                 id: `${eventId}_${index}`,
-                url: `${directory}/${fileName}`,
-                filename: fileName,
+                url: photo.url,
+                filename: photo.filename,
                 credit: 'Unknown',
                 uploadedAt: new Date().toISOString()
             }));
